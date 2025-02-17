@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MessageBird SMS Sender</title>
+</head>
+<body>
+  <h1>MessageBird SMS Sender</h1>
+  <form id="smsForm">
+    <label for="apiKey">MessageBird API Key:</label>
+    <input type="text" id="apiKey" name="apiKey" required><br><br>
+
+    <label for="sender">Sender:</label>
+    <input type="text" id="sender" name="sender" required><br><br>
+
+    <label for="csvFile">Upload CSV File (Name, Phone Number):</label>
+    <input type="file" id="csvFile" name="csvFile" accept=".csv" required><br><br>
+
+    <label for="message">SMS Message:</label><br>
+    <textarea id="message" name="message" rows="5" cols="40" required></textarea><br><br>
+
+    <button type="submit">Send SMS</button>
+  </form>
+
+  <p id="result"></p>
+
+  <script>
+    document.getElementById("smsForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const apiKey = document.getElementById("apiKey").value;
+      const senderValue = document.getElementById("sender").value;
+      const file = document.getElementById("csvFile").files[0];
+      const message = document.getElementById("message").value;
+
+      if (!file) {
+        alert("Please upload a CSV file.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        const csvData = event.target.result;
+        const rows = csvData.split("\n");
+        const recipients = rows
+        .filter(row => row.trim() !== "") 
+        .map((row) => {
+          const [name, number] = row.split(",");
+          return { name: name.trim(), phoneNumber: number.trim() };
+        });
+
+        sendMessages(apiKey, recipients, senderValue, message);
+      };
+      reader.readAsText(file);
+    });
+
+    function sendMessages(apiKey, recipients, senderValue, message) {
+      recipients.forEach((recipient) => {
+        if (!recipient.phoneNumber) return;
+
+        const fullMessage = "Hi " + recipient.name + ", " + message;
+        const endpoint = "https://rest.messagebird.com/messages";
+
+        const data = {
+          originator: senderValue,
+          recipients: [recipient.phoneNumber],
+          body: fullMessage,
+        };
+
+        fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `AccessKey ${apiKey}`,
+          },
+          body: JSON.stringify(data),
+        })
+          .then((response) => response.json())
+          .then((result) => {
+            console.log(result);
+            document.getElementById(
+              "result"
+            ).innerText += `Message sent to ${recipient.name} (${recipient.phoneNumber}): ${result.status}\n`;
+          })
+          .catch((error) => {
+            console.error(error);
+            document.getElementById(
+              "result"
+            ).innerText += `Failed to send message to ${recipient.name} (${recipient.phoneNumber}): ${error.message}\n`;
+          });
+      });
+    }
+  </script>
+</body>
+</html>
